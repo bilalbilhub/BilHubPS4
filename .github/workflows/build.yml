@@ -13,13 +13,21 @@ jobs:
     - name: Download project
       uses: actions/checkout@v4
 
-    - name: Install tools
+    - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y cmake make g++
+        sudo apt install -y cmake make gcc g++ git
+
+    - name: Install OpenOrbis Toolchain
+      run: |
+        git clone https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git
+        cd OpenOrbis-PS4-Toolchain
+        chmod +x install.sh
+        ./install.sh
 
     - name: Build
       run: |
+        export OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis-PS4-Toolchain
         mkdir build
         cd build
         cmake ..
