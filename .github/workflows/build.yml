@@ -1,0 +1,26 @@
+name: Build BilHubPS4
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download project
+      uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        sudo apt update
+        sudo apt install -y cmake make g++
+
+    - name: Build
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
