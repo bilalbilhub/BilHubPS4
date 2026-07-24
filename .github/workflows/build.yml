@@ -15,9 +15,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y wget tar make python3
 
-    - name: Install OpenOrbis Toolchain
+    - name: Download and Install OpenOrbis Toolchain
       run: |
-        wget https://github.com
+        wget -q --show-progress https://github.com
         sudo tar -xzf OpenOrbis_PS4_Toolchain_v0.5.2.tar.gz -C /usr/local
         echo "OO_PS4_TOOLCHAIN=/usr/local/OpenOrbis" >> $GITHUB_ENV
         echo "/usr/local/OpenOrbis/bin" >> $GITHUB_PATH
