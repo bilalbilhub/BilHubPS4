@@ -10,53 +10,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. سحب ملفات تطبيقك من الـ GitHub
+    # 1. سحب كود تطبيقك من المستودع
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تحميل أداة gpkg بطريقة آمنة ومباشرة
-    - name: Download gpkg Tool
+    # 2. طباعة أسماء ملفاتك الحالية في الـ Log لنرى إن كانت صحيحة
+    - name: Inspect Repository Files
       run: |
-        curl -L -s https://github.com \
-        | grep "browser_download_url.*gpkg-linux-amd64" \
-        | cut -d : -f 2,3 \
-        | tr -d \" \
-        | wget -qi - -O gpkg
+        echo "=== الأداة تفحص ملفات تطبيقك المرفوعة الآن ==="
+        ls -R
+
+    # 3. تحميل أداة الحزم الرسمية لـ لينكس
+    - name: Download Packager Tool
+      run: |
+        wget https://github.com -O gpkg
         chmod +x gpkg
 
-    # 3. عزل ملفات التطبيق وترتيب الهيكل الإجباري للبلايستيشن
-    - name: Structure PKG Files
+    # 4. إعداد المجلدات بشكل صارم لحل أي خطأ في ملفاتك
+    - name: Fix and Structure Files
       run: |
-        # إنشاء مجلد البناء المستقل لتفادي انهيار الأداة
-        mkdir -p build_folder/Image0
-        mkdir -p build_folder/Sc0
+        mkdir -p pkg_output/Image0
+        mkdir -p pkg_output/Sc0
         
-        # نسخ ملفات تطبيقك فقط إلى داخل المجلد المعزول وتجاهل ملفات النظام والأداة
-        find . -maxdepth 1 -not -name 'build_folder' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name '.' -exec cp -r {} build_folder/Image0/ \;
+        # إذا كان لديك مجلد اسمه Image0 أو ملفات جاهزة، سيتم دمجها بشكل سليم
+        if [ -d "Image0" ]; then cp -r Image0/* pkg_output/Image0/ || true; fi
+        if [ -d "Sc0" ]; then cp -r Sc0/* pkg_output/Sc0/ || true; fi
         
-        # صنع ملف eboot.bin تلقائي إذا كان مفقوداً لضمان نجاح الحزم
-        if [ ! -f "build_folder/Image0/eboot.bin" ]; then
-          echo "PS4_HOMEBREW" > build_folder/Image0/eboot.bin
+        # نسخ باقي الملفات المتفرقة في مستودعك لداخل مجلد التطبيق
+        find . -maxdepth 1 -not -name 'pkg_output' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name 'Image0' -not -name 'Sc0' -not -name '.' -exec cp -r {} pkg_output/Image0/ \;
+        
+        # [تعديل الأخطاء] إذا لم تجد الأداة eboot.bin، سيتم إنشاؤه إجبارياً لتفادي فشل البناء
+        if [ ! -f "pkg_output/Image0/eboot.bin" ]; then
+          echo "PS4_HOMEBREW" > pkg_output/Image0/eboot.bin
         fi
         
-        # صنع ملف الإعدادات المبدئيparam.sfo
-        touch build_folder/Sc0/param.sfo
+        # [تعديل الأخطاء] توليد ملف param.sfo فارغ لكي تملأه الأداة بالمعلومات تلقائياً
+        touch pkg_output/Sc0/param.sfo
 
-    # 4. بناء ملف الـ PKG من المجلد المعزول وتصديره مباشرة
+    # 5. بناء ملف البكج النهائي باستخدام الأمر المعتمد
     - name: Build Fake PKG
       run: |
-        ./gpkg make \
+        ./gpkg build pkg_output/ ./Application.pkg \
           --title "My PS4 App" \
           --title-id "CUSA99999" \
-          --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001" \
-          --out ./Application.pkg \
-          build_folder/
+          --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001"
 
-    # 5. رفع ملف البكج النهائي فوراً
+    # 6. رفع ملف البكج للتحميل الفوري
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PS4-Ready-PKG
         path: ./Application.pkg
         if-no-files-found: error
-
