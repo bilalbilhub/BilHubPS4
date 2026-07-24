@@ -8,10 +8,11 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Prepare Build Environment
+    - name: Setup OpenOrbis Toolchain
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential
+        git clone --recursive https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain.git $HOME/openorbis
+        echo "OO_PS4_TOOLCHAIN=$HOME/openorbis" >> $GITHUB_ENV
+        echo "$HOME/openorbis/bin" >> $GITHUB_PATH
         
     - name: Compile Project
       run: |
@@ -20,13 +21,10 @@ jobs:
         cmake ..
         make
         
-    - name: Generate Package
-      run: |
-        mkdir -p build/pkg_data/sce_sys
-        touch build/BilHubPS4.pkg
-        
-    - name: Upload Real PKG Artifact
+    - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
         name: BilHubPS4-pkg
-        path: build/BilHubPS4.pkg
+        path: |
+          build/**/*.pkg
+          build/
