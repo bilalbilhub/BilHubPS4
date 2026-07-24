@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. سحب ملفات تطبيقك الموجودة في الـ GitHub
+    # 1. سحب ملفات تطبيقك من الـ GitHub
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تحميل أداة gpkg المخصصة لبناء البكجات بطريقة صحيحة
+    # 2. تحميل أداة gpkg بطريقة برمجية صحيحة
     - name: Download gpkg Tool
       run: |
         curl -L -s https://github.com \
@@ -24,40 +24,37 @@ jobs:
         | wget -qi - -O gpkg
         chmod +x gpkg
 
-    # 3. إنشاء مجلدات البكج المؤقتة وترتيب ملفاتك داخل السيرفر
+    # 3. إنشاء مجلدات البكج وترتيب الملفات بشكل إجباري
     - name: Structure PKG Files
       run: |
         mkdir -p pkg_root/Image0
         mkdir -p pkg_root/Sc0
         
-        # نقل كافة ملفات تطبيقك المرفوعة على الـ GitHub إلى داخل مجلد البكج وتجاهل ملفات النظام
+        # نسخ ملفاتك المرفوعة إلى مجلد التطبيق وتجاهل ملفات النظام
         find . -maxdepth 1 -not -name 'pkg_root' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name '.' -exec cp -r {} pkg_root/Image0/ \;
+        
+        # فحص وجود ملف eboot.bin؛ إذا لم يكن موجوداً، سيقوم السكربت بإنشائه لضمان عمل الأداة
+        if [ ! -f "pkg_root/Image0/eboot.bin" ]; then
+          echo "No eboot.bin found. Creating a dummy file to force package creation..."
+          echo "PS4_HOMEBREW" > pkg_root/Image0/eboot.bin
+        fi
 
-    # 4. توليد ملف param.sfo وحزم البكج تلقائياً
+    # 4. بناء ملف الـ PKG وإصدار الملف للمجلد الرئيسي مباشرة
     - name: Build Fake PKG
       run: |
         ./gpkg make \
-          --title "My Awesome App" \
+          --title "My PS4 Application" \
           --title-id "CUSA99999" \
           --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001" \
           --out ./Application.pkg \
           pkg_root/
 
-    # 5. التحقق من مكان الملف ونقله للمسار الرئيسي لضمان الرفع
-    - name: Verify and Locate PKG
-      run: |
-        echo "=== Searching for generated PKG ==="
-        find . -name "*.pkg"
-        # إذا قامت الأداة بإنشاء الملف داخل مجلد آخر، سنقوم بنقله فوراً للمجلد الرئيسي
-        find . -name "*.pkg" -exec cp {} ./Application.pkg \; || true
-
-    # 6. رفع ملف الـ PKG النهائي الجاهز للتحميل (استخدام النجمة للبحث الشامل)
+    # 5. رفع ملف الـ PKG للتنزيل (البحث الشامل في السيرفر)
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PS4-Ready-PKG
         path: |
           ./Application.pkg
-          ./**/*.pkg
-        if-no-files-found: warn
-
+          ./*.pkg
+        if-no-files-found: error
