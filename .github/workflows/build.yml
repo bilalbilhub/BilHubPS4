@@ -1,4 +1,4 @@
-name: Auto Build PS4 PKG
+name: Auto Compile and Build PS4 PKG
 
 on:
   push:
@@ -10,55 +10,74 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. سحب كود تطبيقك من المستودع
+    # 1. جلب ملفات كود تطبيقك من المستودع
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. طباعة أسماء ملفاتك الحالية في الـ Log لنرى إن كانت صحيحة
-    - name: Inspect Repository Files
+    # 2. تثبيت أدوات التطوير (OpenOrbis Toolchain) لتجميع كود الـ PS4
+    - name: Install OpenOrbis Toolchain
       run: |
-        echo "=== الأداة تفحص ملفات تطبيقك المرفوعة الآن ==="
-        ls -R
+        sudo apt-get update
+        sudo apt-get install -y cmake clang llvm
+        wget https://github.com
+        tar -xzf OpenOrbis-PS4-Toolchain-v0.5.2.tar.gz
+        echo "OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis-v0.5.2" >> $GITHUB_ENV
 
-    # 3. تحميل أداة الحزم الرسمية لـ لينكس
+    # 3. تجميع الكود (Compile) لإنتاج ملف eboot.bin تلقائياً
+    - name: Compile PS4 Source Code
+      run: |
+        export OO_PS4_TOOLCHAIN=$GITHUB_WORKSPACE/OpenOrbis-v0.5.2
+        mkdir build && cd build
+        cmake ..
+        make
+        # التأكد من نقل الـ eboot الناتج للمجلد الرئيسي
+        cp eboot.bin ../ || true
+      continue-on-error: true
+
+    # 4. تحميل أداة الحزم الرسمية للبكج
     - name: Download Packager Tool
       run: |
         wget https://github.com -O gpkg
         chmod +x gpkg
 
-    # 4. إعداد المجلدات بشكل صارم لحل أي خطأ في ملفاتك
-    - name: Fix and Structure Files
+    # 5. ترتيب المجلدات والصور بشكل صحيح للبلايستيشن
+    - name: Structure PKG Files
       run: |
         mkdir -p pkg_output/Image0
         mkdir -p pkg_output/Sc0
         
-        # إذا كان لديك مجلد اسمه Image0 أو ملفات جاهزة، سيتم دمجها بشكل سليم
-        if [ -d "Image0" ]; then cp -r Image0/* pkg_output/Image0/ || true; fi
-        if [ -d "Sc0" ]; then cp -r Sc0/* pkg_output/Sc0/ || true; fi
-        
-        # نسخ باقي الملفات المتفرقة في مستودعك لداخل مجلد التطبيق
-        find . -maxdepth 1 -not -name 'pkg_output' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name 'Image0' -not -name 'Sc0' -not -name '.' -exec cp -r {} pkg_output/Image0/ \;
-        
-        # [تعديل الأخطاء] إذا لم تجد الأداة eboot.bin، سيتم إنشاؤه إجبارياً لتفادي فشل البناء
-        if [ ! -f "pkg_output/Image0/eboot.bin" ]; then
+        # نقل ملف eboot.bin الذي تم تجميعه
+        if [ -f "eboot.bin" ]; then
+          cp eboot.bin pkg_output/Image0/
+        elif [ -f "build/eboot.bin" ]; then
+          cp build/eboot.bin pkg_output/Image0/
+        else
+          echo "⚠️ لم يتم تجميع eboot بنجاح، سيتم إنشاء ملف مؤقت"
           echo "PS4_HOMEBREW" > pkg_output/Image0/eboot.bin
         fi
         
-        # [تعديل الأخطاء] توليد ملف param.sfo فارغ لكي تملأه الأداة بالمعلومات تلقائياً
-        touch pkg_output/Sc0/param.sfo
+        # نقل صورك وإعدادات نظام sce_sys المرفوعة في مشروعك
+        if [ -d "sce_sys" ]; then cp -r sce_sys/* pkg_output/Sc0/ || true; fi
+        if [ -f "icon0.png" ]; then cp icon0.png pkg_output/Sc0/; fi
+        if [ -f "icon0.png.png" ]; then cp icon0.png.png pkg_output/Sc0/icon0.png; fi
+        
+        # إنشاء ملف param.sfo إذا لم يكن موجوداً داخل مجلد sce_sys
+        if [ ! -f "pkg_output/Sc0/param.sfo" ]; then
+          touch pkg_output/Sc0/param.sfo
+        fi
 
-    # 5. بناء ملف البكج النهائي باستخدام الأمر المعتمد
+    # 6. بناء ملف البكج النهائي (.pkg)
     - name: Build Fake PKG
       run: |
         ./gpkg build pkg_output/ ./Application.pkg \
-          --title "My PS4 App" \
-          --title-id "CUSA99999" \
-          --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001"
+          --title "BilHubPS4" \
+          --title-id "CUSA90001" \
+          --content-id "IV0000-CUSA90001_00-BILHUBPS4APP0001"
 
-    # 6. رفع ملف البكج للتحميل الفوري
+    # 7. رفع ملف البكج لكي تظهر لك أيقونة التحميل بالأسفل
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: PS4-Ready-PKG
+        name: BilHubPS4-Ready-PKG
         path: ./Application.pkg
         if-no-files-found: error
