@@ -2,8 +2,8 @@ name: Auto Build PS4 PKG
 
 on:
   push:
-    branches: [ main, master ] # يعمل تلقائياً عند رفع أي ملف
-  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً بضغطة زر
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,10 +14,14 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تحميل أداة gpkg المخصصة لبناء البكجات داخل سيرفر GitHub
-    - name: Download gpkg Tool
+    # 2. تحميل أداة gpkg المخصصة لبناء البكجات بطريقة صحيحة تمنع تحميل صفحات الويب
+    - name: Download gpkg Tool (Fix)
       run: |
-        wget https://github.com -O gpkg
+        curl -L -s https://github.com \
+        | grep "browser_download_url.*gpkg-linux-amd64" \
+        | cut -d : -f 2,3 \
+        | tr -d \" \
+        | wget -qi - -O gpkg
         chmod +x gpkg
 
     # 3. إنشاء مجلدات البكج المؤقتة وترتيب ملفاتك داخل السيرفر
@@ -26,12 +30,10 @@ jobs:
         mkdir -p pkg_root/Image0
         mkdir -p pkg_root/Sc0
         
-        # نقل كافة ملفات تطبيقك المرفوعة على الـ GitHub إلى داخل مجلد البكج
-        # السكريبت سيتجاهل ملفات النظام الخاصة بـ GitHub تلقائياً
+        # نقل كافة ملفات تطبيقك المرفوعة على الـ GitHub إلى داخل مجلد البكج وتجاهل ملفات النظام
         find . -maxdepth 1 -not -name 'pkg_root' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name '.' -exec cp -r {} pkg_root/Image0/ \;
 
     # 4. توليد ملف param.sfo وحزم البكج تلقائياً
-    # يمكنك تغيير الاسم (My Awesome App) وتغيير الـ Title ID (CUSA99999) كما تحب
     - name: Build Fake PKG
       run: |
         ./gpkg make \
