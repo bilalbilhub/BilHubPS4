@@ -1,43 +1,49 @@
-name: Build BilHubPS4
+name: Auto Build PS4 PKG
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, master ] # يعمل تلقائياً عند رفع أي ملف
+  workflow_dispatch: # يتيح لك تشغيل البناء يدوياً بضغطة زر
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Environment & Toolchain
+    # 1. سحب ملفات تطبيقك الموجودة في الـ GitHub
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 2. تحميل أداة gpkg المخصصة لبناء البكجات داخل سيرفر GitHub
+    - name: Download gpkg Tool
       run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake build-essential
-        
-        # تجهيز مسارات أدوات البناء
-        mkdir -p $HOME/openorbis/bin
-        echo "OO_PS4_TOOLCHAIN=$HOME/openorbis" >> $GITHUB_ENV
-        echo "$HOME/openorbis/bin" >> $GITHUB_PATH
-        
-        # توفير مترجم متوافق لإنهاء عملية البناء بنجاح
-        if [ ! -f "$HOME/openorbis/bin/clang++" ]; then
-          ln -s /usr/bin/g++ $HOME/openorbis/bin/clang++
-        fi
-        
-    - name: Compile Project
+        wget https://github.com -O gpkg
+        chmod +x gpkg
+
+    # 3. إنشاء مجلدات البكج المؤقتة وترتيب ملفاتك داخل السيرفر
+    - name: Structure PKG Files
       run: |
-        mkdir -p build
-        cd build
-        cmake .. || true
-        make || true
+        mkdir -p pkg_root/Image0
+        mkdir -p pkg_root/Sc0
         
-    - name: Generate Final Package
+        # نقل كافة ملفات تطبيقك المرفوعة على الـ GitHub إلى داخل مجلد البكج
+        # السكريبت سيتجاهل ملفات النظام الخاصة بـ GitHub تلقائياً
+        find . -maxdepth 1 -not -name 'pkg_root' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name '.' -exec cp -r {} pkg_root/Image0/ \;
+
+    # 4. توليد ملف param.sfo وحزم البكج تلقائياً
+    # يمكنك تغيير الاسم (My Awesome App) وتغيير الـ Title ID (CUSA99999) كما تحب
+    - name: Build Fake PKG
       run: |
-        mkdir -p build/pkg_data
-        # تجهيز ملف التثبيت النهائي للـ PS4
-        touch build/BilHubPS4.pkg
-        
+        ./gpkg make \
+          --title "My Awesome App" \
+          --title-id "CUSA99999" \
+          --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001" \
+          --out ./Application.pkg \
+          pkg_root/
+          
+    # 5. رفع ملف الـ PKG النهائي الجاهز للتحميل
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: BilHubPS4-pkg
-        path: build/BilHubPS4.pkg
+        name: PS4-Ready-PKG
+        path: ./Application.pkg
