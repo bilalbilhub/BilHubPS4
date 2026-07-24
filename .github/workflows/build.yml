@@ -14,7 +14,7 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تحميل أداة gpkg
+    # 2. تحميل أداة gpkg بطريقة آمنة ومباشرة
     - name: Download gpkg Tool
       run: |
         curl -L -s https://github.com \
@@ -24,24 +24,25 @@ jobs:
         | wget -qi - -O gpkg
         chmod +x gpkg
 
-    # 3. إنشاء المجلدات وترتيب ملفات PS4 الإجبارية
+    # 3. عزل ملفات التطبيق وترتيب الهيكل الإجباري للبلايستيشن
     - name: Structure PKG Files
       run: |
-        mkdir -p Image0
-        mkdir -p Sc0
+        # إنشاء مجلد البناء المستقل لتفادي انهيار الأداة
+        mkdir -p build_folder/Image0
+        mkdir -p build_folder/Sc0
         
-        # إنشاء ملف eboot.bin وهمي في حال لم يكن موجوداً لتشغيل الحزمة
-        if [ ! -f "eboot.bin" ] && [ ! -f "Image0/eboot.bin" ]; then
-          echo "PS4_HOMEBREW" > Image0/eboot.bin
+        # نسخ ملفات تطبيقك فقط إلى داخل المجلد المعزول وتجاهل ملفات النظام والأداة
+        find . -maxdepth 1 -not -name 'build_folder' -not -name 'gpkg' -not -name '.git' -not -name '.github' -not -name '.' -exec cp -r {} build_folder/Image0/ \;
+        
+        # صنع ملف eboot.bin تلقائي إذا كان مفقوداً لضمان نجاح الحزم
+        if [ ! -f "build_folder/Image0/eboot.bin" ]; then
+          echo "PS4_HOMEBREW" > build_folder/Image0/eboot.bin
         fi
         
-        # إنشاء ملفات sfo مخصصة إذا كانت مفقودة لتفادي انهيار البرنامج
-        if [ ! -f "Sc0/param.sfo" ]; then
-          echo "Creating basic configs..."
-          touch Sc0/param.sfo
-        fi
+        # صنع ملف الإعدادات المبدئيparam.sfo
+        touch build_folder/Sc0/param.sfo
 
-    # 4. بناء ملف الـ PKG مع طباعة تقرير مفصل للأخطاء إن وجدت
+    # 4. بناء ملف الـ PKG من المجلد المعزول وتصديره مباشرة
     - name: Build Fake PKG
       run: |
         ./gpkg make \
@@ -49,23 +50,13 @@ jobs:
           --title-id "CUSA99999" \
           --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001" \
           --out ./Application.pkg \
-          ./
-      continue-on-error: true
+          build_folder/
 
-    # 5. فحص شامل للتأكد من مكان الملف وطباعة النتيجة في الـ Log
-    - name: Check output files
-      run: |
-        echo "=== Current Directory Files ==="
-        ls -la
-        echo "=== Finding all PKG files ==="
-        find . -name "*.pkg"
-
-    # 6. رفع ملف الـ PKG للتنزيل مهما كان مكانه
+    # 5. رفع ملف البكج النهائي فوراً
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PS4-Ready-PKG
-        path: |
-          ./*.pkg
-          **/*.pkg
-        if-no-files-found: warn
+        path: ./Application.pkg
+        if-no-files-found: error
+
