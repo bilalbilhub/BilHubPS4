@@ -14,28 +14,28 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تجميع الكود (Compile) للأدوات الرسمية المدمجة
+    # 2. تجميع الكود الأساسي (Compile) بشكل آمن ومدمج
     - name: Compile PS4 Source Code (Safe Mode)
       run: |
         mkdir -p build
         if [ -d "src" ]; then
-          gcc -O2 -Wall -shared -o build/eboot.bin src/*.c || echo "Using standby bin"
+          gcc -O2 -Wall -shared -o build/eboot.bin src/*.c || echo "Standby bin used"
         fi
         if [ ! -f "build/eboot.bin" ]; then
           echo "PS4_HOMEBREW_BIN" > build/eboot.bin
         fi
 
-    # 3. تحميل أداة الحزم عبر الـ API الرسمي لضمان تخطي حظر صفحات الويب (مهم جداً)
+    # 3. تحميل أداة الحزم الرسمية عبر الـ API الآمن لضمان عدم تحميل صفحات HTML
     - name: Download Packager Tool Via API
       run: |
         curl -L -s https://github.com \
-        | grep "browser_download_url.*gpkg-linux-amd64" \
+        | grep "browser_download_url.*gpkg-linux-x64" \
         | cut -d : -f 2,3 \
         | tr -d \" \
         | wget -qi - -O gpkg
         chmod +x gpkg
 
-    # 4. ترتيب المجلدات والصور بشكل صحيح للبلايستيشن
+    # 4. ترتيب المجلدات والصور بشكل صحيح وصارم للبلايستيشن
     - name: Structure PKG Files
       run: |
         mkdir -p pkg_output/Image0
@@ -54,21 +54,18 @@ jobs:
           touch pkg_output/Sc0/param.sfo
         fi
 
-    # 5. بناء ملف البكج النهائي باستخدام أداة gpkg المستقرة والأمر الصحيح لها
+    # 5. بناء ملف البكج النهائي باستخدام الأداة المحملة بشكل صحيح
     - name: Build Fake PKG
       run: |
-        ./gpkg make \
+        ./gpkg build pkg_output/ ./Application.pkg \
           --title "BilHubPS4" \
           --title-id "CUSA90001" \
-          --content-id "IV0000-CUSA90001_00-BILHUBPS4APP0001" \
-          --out ./Application.pkg \
-          pkg_output/
+          --content-id "IV0000-CUSA90001_00-BILHUBPS4APP0001"
 
-    # 6. رفع ملف البكج الجاهز للتحميل
+    # 6. رفع ملف البكج الجاهز للتحميل الفوري
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
         name: BilHubPS4-Ready-PKG
         path: ./Application.pkg
         if-no-files-found: error
-
