@@ -1,72 +1,30 @@
-name: Ultimate PS4 WebApp PKG Release
+name: Build PS4 PKG
 
-on:
-  push:
-    branches: [ main, master ]
-  workflow_dispatch:
-
-permissions:
-  contents: write
+on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. جلب ملفات كود تطبيقك وصورك من المستودع
-    - name: Checkout Code
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    # 2. بناء هيكل نظام WebApp المعتمد رسمياً لأجهزة PS4 المهكرة
-    - name: Structure WebApp Folders
+    - name: Install OpenOrbis Toolchain
       run: |
-        mkdir -p pkg_output/Image0
-        mkdir -p pkg_output/Sc0
-        
-        # نقل ملفات تطبيقك المرفوعة وتوجيهها للمجلد التنفيذي
-        find . -maxdepth 1 -not -name 'pkg_output' -not -name '.git' -not -name '.github' -not -name '.' -exec cp -r {} pkg_output/Image0/ \;
-        
-        # [حل مشكلة الخطأ 30002] صناعة ملف تشغيل نظام ويب حقيقي وموقع رسمياً للبلايستيشن
-        python3 -c "
-        import struct
-        # كتابة ترويسة تطبيق ويب تنفيذي رسمي يقبله معالج الـ PS4 بدون تشفير معقد
-        with open('pkg_output/Image0/eboot.bin', 'wb') as f:
-            f.write(b'\x7fELF\x02\x01\x01\x09' + b'\x00' * 56 + b'PS4_WEBAPP_LAUNCHER_STUB')
-        "
-        
-        # إنشاء ملف ويب احتياطي index.html في حال كان مستودعك لا يحتوي عليه
-        if [ ! -f "pkg_output/Image0/index.html" ]; then
-          echo "<html><body style='background:#111;color:#fff;text-align:center;padding-top:20%;font-family:sans-serif;'><h1>Welcome to BilHubPS4 Application!</h1><p>Your app is running perfectly via GoldHEN.</p></body></html>" > pkg_output/Image0/index.html
-        fi
+        sudo apt-get update
+        sudo apt-get install -y wget setup-ext-repo
+        wget https://github.com
+        sudo tar -xzf OpenOrbis_PS4_Toolchain_v0.5.2.tar.gz -C /usr/local
+        echo "OO_PS4_TOOLCHAIN=/usr/local/OpenOrbis" >> $GITHUB_ENV
+        echo "/usr/local/OpenOrbis/bin" >> $GITHUB_PATH
 
-        # نقل نظام sce_sys والأيقونة icon0.png في حال تواجدهما بمشروعك
-        if [ -d "sce_sys" ]; then cp -r sce_sys/* pkg_output/Sc0/ || true; fi
-        if [ -f "icon0.png" ]; then cp icon0.png pkg_output/Sc0/; fi
-
-        # بناء ملف معايير مشفر بصيغة ثنائية (Binary) يبلغ الـ PS4 بأن التطبيق عبارة عن WebApp
-        python3 -c "
-        import struct
-        # تحديد الفئة كأداة ويب 'gW' لتخطي فحص معالج الألعاب العادي
-        header = struct.pack('<4sIIII', b'\x00PSF', 0x00010100, 0x00000028, 0x00000088, 0x00000002)
-        key_table = b'CATEGORY\x00TITLE\x00'
-        value_table = b'gW\x00\x00BilHubPS4\x00\x00\x00\x00'
-        index_table = struct.pack('<HHIII', 0, 0x0204, 2, 4, 0) + struct.pack('<HHIII', 9, 0x0200, 12, 16, 4)
-        with open('pkg_output/Sc0/param.sfo', 'wb') as f:
-            f.write(header + index_table + key_table + value_table)
-        "
-
-    # 3. استخدام Node.js لتعبئة وتشفير الـ Fake PKG بالصيغة الرسمية لـ GoldHEN
-    - name: Pack and Encrypt via Node Packager
+    - name: Build Project
       run: |
-        npm install -g @maxton/orbis-pub-cmd || true
-        npx orbis-pub-cmd pack pkg_output/ ./BilHubPS4.pkg --title "BilHubPS4" --title-id "CUSA90001" || tar -cvf ./BilHubPS4.pkg -C pkg_output .
+        make
 
-    # 4. الرفع الآمن والمباشر عبر نظام GitHub Releases الرسمي
-    - name: Create Release and Upload PKG
-      uses: softprops/action-gh-release@v2
+    - name: Upload PKG Artifact
+      uses: actions/upload-artifact@v4
       with:
-        tag_name: v1.0.${{ github.run_number }}
-        name: BilHubPS4 Release v1.0.${{ github.run_number }}
-        files: ./BilHubPS4.pkg
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        name: BILHUBINPS4-PKG
+        path: "*.pkg"
