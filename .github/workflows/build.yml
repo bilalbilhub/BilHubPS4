@@ -10,10 +10,13 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install OpenOrbis Toolchain
+    - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y wget setup-ext-repo
+        sudo apt-get install -y wget tar make python3
+
+    - name: Install OpenOrbis Toolchain
+      run: |
         wget https://github.com
         sudo tar -xzf OpenOrbis_PS4_Toolchain_v0.5.2.tar.gz -C /usr/local
         echo "OO_PS4_TOOLCHAIN=/usr/local/OpenOrbis" >> $GITHUB_ENV
@@ -27,4 +30,6 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: BILHUBINPS4-PKG
-        path: "*.pkg"
+        path: |
+          *.pkg
+          *.bin
