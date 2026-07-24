@@ -14,8 +14,8 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تحميل أداة gpkg المخصصة لبناء البكجات بطريقة صحيحة تمنع تحميل صفحات الويب
-    - name: Download gpkg Tool (Fix)
+    # 2. تحميل أداة gpkg المخصصة لبناء البكجات بطريقة صحيحة
+    - name: Download gpkg Tool
       run: |
         curl -L -s https://github.com \
         | grep "browser_download_url.*gpkg-linux-amd64" \
@@ -42,10 +42,22 @@ jobs:
           --content-id "IV0000-CUSA99999_00-MYSAMPLEAPP00001" \
           --out ./Application.pkg \
           pkg_root/
-          
-    # 5. رفع ملف الـ PKG النهائي الجاهز للتحميل
+
+    # 5. التحقق من مكان الملف ونقله للمسار الرئيسي لضمان الرفع
+    - name: Verify and Locate PKG
+      run: |
+        echo "=== Searching for generated PKG ==="
+        find . -name "*.pkg"
+        # إذا قامت الأداة بإنشاء الملف داخل مجلد آخر، سنقوم بنقله فوراً للمجلد الرئيسي
+        find . -name "*.pkg" -exec cp {} ./Application.pkg \; || true
+
+    # 6. رفع ملف الـ PKG النهائي الجاهز للتحميل (استخدام النجمة للبحث الشامل)
     - name: Upload PKG Artifact
       uses: actions/upload-artifact@v4
       with:
         name: PS4-Ready-PKG
-        path: ./Application.pkg
+        path: |
+          ./Application.pkg
+          ./**/*.pkg
+        if-no-files-found: warn
+
