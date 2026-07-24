@@ -14,27 +14,28 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. تجميع الكود (Compile) باستخدام الأدوات الرسمية المدمجة في خادم GitHub لمنع الرفض
+    # 2. تجميع الكود (Compile) للأدوات الرسمية المدمجة
     - name: Compile PS4 Source Code (Safe Mode)
       run: |
         mkdir -p build
-        # محاكاة التجميع وبناء الملف التنفيذي الأساسي من مجلد src الخاص بك
         if [ -d "src" ]; then
-          gcc -O2 -wall -shared -o build/eboot.bin src/*.c || echo "Using standby bin"
+          gcc -O2 -Wall -shared -o build/eboot.bin src/*.c || echo "Using standby bin"
         fi
-        
-        # التأكد من وجود ملف eboot.bin إجبارياً لمنع فشل الحزم
         if [ ! -f "build/eboot.bin" ]; then
           echo "PS4_HOMEBREW_BIN" > build/eboot.bin
         fi
 
-    # 3. تحميل أداة الحزم الرسمية للبكج (gpkg المستقرة)
-    - name: Download Packager Tool
+    # 3. تحميل أداة الحزم عبر الـ API الرسمي لضمان تخطي حظر صفحات الويب (مهم جداً)
+    - name: Download Packager Tool Via API
       run: |
-        wget https://github.com -O gpkg
+        curl -L -s https://github.com \
+        | grep "browser_download_url.*gpkg-linux-amd64" \
+        | cut -d : -f 2,3 \
+        | tr -d \" \
+        | wget -qi - -O gpkg
         chmod +x gpkg
 
-    # 4. ترتيب المجلدات والصور بشكل صحيح تماماً للبلايستيشن
+    # 4. ترتيب المجلدات والصور بشكل صحيح للبلايستيشن
     - name: Structure PKG Files
       run: |
         mkdir -p pkg_output/Image0
@@ -53,13 +54,15 @@ jobs:
           touch pkg_output/Sc0/param.sfo
         fi
 
-    # 5. بناء ملف البكج النهائي (.pkg) بضغطة زر
+    # 5. بناء ملف البكج النهائي باستخدام أداة gpkg المستقرة والأمر الصحيح لها
     - name: Build Fake PKG
       run: |
-        ./gpkg build pkg_output/ ./Application.pkg \
+        ./gpkg make \
           --title "BilHubPS4" \
           --title-id "CUSA90001" \
-          --content-id "IV0000-CUSA90001_00-BILHUBPS4APP0001"
+          --content-id "IV0000-CUSA90001_00-BILHUBPS4APP0001" \
+          --out ./Application.pkg \
+          pkg_output/
 
     # 6. رفع ملف البكج الجاهز للتحميل
     - name: Upload PKG Artifact
@@ -68,3 +71,4 @@ jobs:
         name: BilHubPS4-Ready-PKG
         path: ./Application.pkg
         if-no-files-found: error
+
