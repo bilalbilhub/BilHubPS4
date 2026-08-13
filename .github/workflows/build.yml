@@ -12,7 +12,7 @@ jobs:
     - name: Checkout project files
       uses: actions/checkout@v4
 
-    # 1. تجهيز الملفات في مجلد نظيف
+    # 1. تجهيز الملفات وترتيب المجلد النظيف الخاص بالسوني
     - name: Prepare Clean Package Folder
       run: |
         mkdir staging
@@ -22,17 +22,17 @@ jobs:
         if (Test-Path "downloads.json") { cp downloads.json staging/ }
         if (Test-Path "src") { cp -r src staging/ }
 
-    # 2. التعديل الصحيح: استخدام الكود المعتمد من الأداة gp4_proj_create
+    # 2. الحل الجذري: استخدام أداة gengp4_app.exe التي تملكها لصناعة ملف المشروع
     - name: Create GP4 Project File
       run: |
-        ./tools/orbis-pub-cmd.exe gp4_proj_create --root_dir "./staging" "./project.gp4"
+        ./tools/gengp4_app.exe "./staging" "./project.gp4"
 
-    # 3. بناء البكج النهائي بالاعتماد على ملف المشروع الجديد
+    # 3. بناء البكج النهائي بالاعتماد على ملف المشروع المستقر الجديد
     - name: Compile Fake PKG
       run: |
         ./tools/orbis-pub-cmd.exe img_create "./project.gp4" "./output.pkg"
 
-    # 4. رفع البكج النهائي
+    # 4. رفع البكج النهائي لتجده جاهزاً للتحميل في صفحة الـ Actions
     - name: Upload Finished PKG
       uses: actions/upload-artifact@v4
       with:
