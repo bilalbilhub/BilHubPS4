@@ -1,35 +1,31 @@
-name: Build PS4 PKG
+name: Build PS4 FPKG
 
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [ main ] # يعمل السكريبت تلقائياً عند رفع الملفات لفرع main
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest # فتح كمبيوتر ويندوز وهمي في سيرفرات جيتهاب
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+    - name: Checkout project files
+      uses: actions/checkout@v3
 
-    - name: Install Dependencies
+    # هنا نطلب من جيتهاب تحميل أدوات تجميع البكج من رابط خارجي أو استخدام المرفقة
+    - name: Download PS4 Publishing Tools
       run: |
-        sudo apt-get update
-        sudo apt-get install -y wget tar make python3
+        curl -L -o ftp-tools.zip "https://github.com"
+        Expand-Archive ftp-tools.zip -DestinationPath .
 
-    - name: Download and Install OpenOrbis Toolchain
+    # هذه الخطوة تقوم بتشغيل أداة التجميع عبر سطر الأوامر (Command Line)
+    - name: Compile Fake PKG
       run: |
-        wget -q --show-progress https://github.com
-        sudo tar -xzf OpenOrbis_PS4_Toolchain_v0.5.2.tar.gz -C /usr/local
-        echo "OO_PS4_TOOLCHAIN=/usr/local/OpenOrbis" >> $GITHUB_ENV
-        echo "/usr/local/OpenOrbis/bin" >> $GITHUB_PATH
+        ./orbis-pub-cmd-mirror-master/orbis-pub-cmd.exe img_create "./sce_sys/param.sfo" "./output.pkg"
+      # ملاحظة: يجب تعديل المسارات بناءً على ترتيب مجلدات مشروعك
 
-    - name: Build Project
-      run: |
-        make
-
-    - name: Upload PKG Artifact
-      uses: actions/upload-artifact@v4
+    - name: Upload Finished PKG
+      uses: actions/upload-artifact@v3
       with:
-        name: BILHUBINPS4-PKG
-        path: |
-          *.pkg
-          *.bin
+        name: PS4-Executable-PKG
+        path: ./output.pkg
