@@ -12,15 +12,7 @@ jobs:
     - name: Checkout project files
       uses: actions/checkout@v4
 
-    - name: Download PS4 Publishing Tools
-      run: |
-        curl -L -o ftp-tools.zip "https://github.com"
-
-    - name: Extract PS4 Tools Safely
-      run: |
-        7z x ftp-tools.zip -otools -y
-
-    # خطوة ذكية: نقوم بإنشاء مجلد نظيف للتعبئة ونضع فيه فقط الملفات الضرورية للسوني
+    # الخطوة الأولى: تجهيز مجلد نظيف وترتيب الملفات الخاصة بالسوني
     - name: Prepare Clean Package Folder
       run: |
         mkdir staging
@@ -30,12 +22,13 @@ jobs:
         if (Test-Path "downloads.json") { cp downloads.json staging/ }
         if (Test-Path "src") { cp -r src staging/ }
 
-    # بناء البكج النهائي من المجلد النظيف المجهز
+    # الخطوة الثانية: تشغيل أداة التجميع التي رفعتها أنت في مجلد tools
     - name: Compile Fake PKG
       run: |
-        ./tools/orbis-pub-cmd-mirror-master/orbis-pub-cmd.exe img_create "./staging/sce_sys/param.sfo" "./output.pkg"
-      continue-on-error: true # نضع هذا لكي لا يتوقف السيرفر إذا كان يحتاج ملف .gp4 كامل
+        ./tools/orbis-pub-cmd.exe img_create "./staging/sce_sys/param.sfo" "./output.pkg"
+      continue-on-error: true
 
+    # الخطوة الثالثة: حفظ ورفع ملف البكج النهائي لتستطيع تحميله
     - name: Upload Finished PKG
       uses: actions/upload-artifact@v4
       with:
