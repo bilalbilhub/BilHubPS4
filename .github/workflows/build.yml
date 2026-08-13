@@ -22,17 +22,23 @@ jobs:
         if (Test-Path "downloads.json") { cp downloads.json staging/ }
         if (Test-Path "src") { cp -r src staging/ }
 
-    # 2. الحل الجذري: استخدام أداة gengp4_app.exe التي تملكها لصناعة ملف المشروع
+    # 2. الحل الذكي: تحميل ملف sc.exe المفقود مباشرة إلى مجلد tools الخاص بنا بالسيرفر
+    - name: Download Missing sc.exe Tool
+      run: |
+        curl -L -o ./tools/sc.exe "https://github.com"
+
+    # 3. استخدام أداة gengp4_app لصناعة ملف المشروع
     - name: Create GP4 Project File
       run: |
         ./tools/gengp4_app.exe "./staging" "./project.gp4"
 
-    # 3. بناء البكج النهائي بالاعتماد على ملف المشروع المستقر الجديد
+    # 4. إجبار السيرفر على استخدام sc.exe التي قمنا بتحميلها في مجلد tools
     - name: Compile Fake PKG
       run: |
+        $env:PATH = "$(Get-Location)\tools;" + $env:PATH
         ./tools/orbis-pub-cmd.exe img_create "./project.gp4" "./output.pkg"
 
-    # 4. رفع البكج النهائي لتجده جاهزاً للتحميل في صفحة الـ Actions
+    # 5. رفع البكج النهائي بصيغة v4 لتجده جاهزاً للتحميل
     - name: Upload Finished PKG
       uses: actions/upload-artifact@v4
       with:
