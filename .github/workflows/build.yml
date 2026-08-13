@@ -2,30 +2,27 @@ name: Build PS4 FPKG
 
 on:
   push:
-    branches: [ main ] # يعمل السكريبت تلقائياً عند رفع الملفات لفرع main
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: windows-latest # فتح كمبيوتر ويندوز وهمي في سيرفرات جيتهاب
+    runs-on: windows-latest
 
     steps:
     - name: Checkout project files
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # تم تحديثها أيضاً للإصدار الأحدث
 
-    # هنا نطلب من جيتهاب تحميل أدوات تجميع البكج من رابط خارجي أو استخدام المرفقة
     - name: Download PS4 Publishing Tools
       run: |
         curl -L -o ftp-tools.zip "https://github.com"
         Expand-Archive ftp-tools.zip -DestinationPath .
 
-    # هذه الخطوة تقوم بتشغيل أداة التجميع عبر سطر الأوامر (Command Line)
     - name: Compile Fake PKG
       run: |
         ./orbis-pub-cmd-mirror-master/orbis-pub-cmd.exe img_create "./sce_sys/param.sfo" "./output.pkg"
-      # ملاحظة: يجب تعديل المسارات بناءً على ترتيب مجلدات مشروعك
 
     - name: Upload Finished PKG
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4 # الحل هنا
       with:
         name: PS4-Executable-PKG
         path: ./output.pkg
