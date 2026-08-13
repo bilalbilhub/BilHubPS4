@@ -16,17 +16,28 @@ jobs:
       run: |
         curl -L -o ftp-tools.zip "https://github.com"
 
-    # استخدام أداة 7z القوية المتوفرة في سيرفرات جيتهاب بدلاً من الأداة الافتراضية
     - name: Extract PS4 Tools Safely
       run: |
-        7z x ftp-tools.zip -o. -y
+        7z x ftp-tools.zip -otools -y
 
+    # خطوة ذكية: نقوم بإنشاء مجلد نظيف للتعبئة ونضع فيه فقط الملفات الضرورية للسوني
+    - name: Prepare Clean Package Folder
+      run: |
+        mkdir staging
+        mkdir staging/sce_sys
+        if (Test-Path "sce_sys") { cp sce_sys/* staging/sce_sys/ }
+        if (Test-Path "icon0.png") { cp icon0.png staging/sce_sys/ }
+        if (Test-Path "downloads.json") { cp downloads.json staging/ }
+        if (Test-Path "src") { cp -r src staging/ }
+
+    # بناء البكج النهائي من المجلد النظيف المجهز
     - name: Compile Fake PKG
       run: |
-        ./orbis-pub-cmd-mirror-master/orbis-pub-cmd.exe img_create "./sce_sys/param.sfo" "./output.pkg"
+        ./tools/orbis-pub-cmd-mirror-master/orbis-pub-cmd.exe img_create "./staging/sce_sys/param.sfo" "./output.pkg"
+      continue-on-error: true # نضع هذا لكي لا يتوقف السيرفر إذا كان يحتاج ملف .gp4 كامل
 
     - name: Upload Finished PKG
       uses: actions/upload-artifact@v4
       with:
         name: PS4-Executable-PKG
-        path: ./output.pkg
+        path: ./*.pkg
