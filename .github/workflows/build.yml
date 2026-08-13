@@ -10,19 +10,23 @@ jobs:
 
     steps:
     - name: Checkout project files
-      uses: actions/checkout@v4 # تم تحديثها أيضاً للإصدار الأحدث
+      uses: actions/checkout@v4
 
     - name: Download PS4 Publishing Tools
       run: |
         curl -L -o ftp-tools.zip "https://github.com"
-        Expand-Archive ftp-tools.zip -DestinationPath .
+
+    # استخدام أداة 7z القوية المتوفرة في سيرفرات جيتهاب بدلاً من الأداة الافتراضية
+    - name: Extract PS4 Tools Safely
+      run: |
+        7z x ftp-tools.zip -o. -y
 
     - name: Compile Fake PKG
       run: |
         ./orbis-pub-cmd-mirror-master/orbis-pub-cmd.exe img_create "./sce_sys/param.sfo" "./output.pkg"
 
     - name: Upload Finished PKG
-      uses: actions/upload-artifact@v4 # الحل هنا
+      uses: actions/upload-artifact@v4
       with:
         name: PS4-Executable-PKG
         path: ./output.pkg
