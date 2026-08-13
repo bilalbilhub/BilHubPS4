@@ -12,7 +12,7 @@ jobs:
     - name: Checkout project files
       uses: actions/checkout@v4
 
-    # الخطوة الأولى: تجهيز مجلد نظيف وترتيب الملفات الخاصة بالسوني
+    # 1. تجهيز الملفات في مجلد نظيف
     - name: Prepare Clean Package Folder
       run: |
         mkdir staging
@@ -22,15 +22,19 @@ jobs:
         if (Test-Path "downloads.json") { cp downloads.json staging/ }
         if (Test-Path "src") { cp -r src staging/ }
 
-    # الخطوة الثانية: تشغيل أداة التجميع التي رفعتها أنت في مجلد tools
+    # 2. خطوة إجبارية: توليد ملف مشروع gp4 للأداة لكي تدمج الملفات بشكل صحيح
+    - name: Create GP4 Project File
+      run: |
+        ./tools/orbis-pub-cmd.exe gp4_create --dir "./staging" "./project.gp4"
+
+    # 3. بناء البكج النهائي بالاعتماد على ملف المشروع الجديد
     - name: Compile Fake PKG
       run: |
-        ./tools/orbis-pub-cmd.exe img_create "./staging/sce_sys/param.sfo" "./output.pkg"
-      continue-on-error: true
+        ./tools/orbis-pub-cmd.exe img_create "./project.gp4" "./output.pkg"
 
-    # الخطوة الثالثة: حفظ ورفع ملف البكج النهائي لتستطيع تحميله
+    # 4. رفع البكج الذي سيتم إنشاؤه بالتأكيد الآن باسم output.pkg
     - name: Upload Finished PKG
       uses: actions/upload-artifact@v4
       with:
         name: PS4-Executable-PKG
-        path: ./*.pkg
+        path: ./output.pkg
