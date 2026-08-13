@@ -22,17 +22,17 @@ jobs:
         if (Test-Path "downloads.json") { cp downloads.json staging/ }
         if (Test-Path "src") { cp -r src staging/ }
 
-    # 2. خطوة إجبارية: توليد ملف مشروع gp4 للأداة لكي تدمج الملفات بشكل صحيح
+    # 2. التعديل الصحيح: استخدام الكود المعتمد من الأداة gp4_proj_create
     - name: Create GP4 Project File
       run: |
-        ./tools/orbis-pub-cmd.exe gp4_create --dir "./staging" "./project.gp4"
+        ./tools/orbis-pub-cmd.exe gp4_proj_create --root_dir "./staging" "./project.gp4"
 
     # 3. بناء البكج النهائي بالاعتماد على ملف المشروع الجديد
     - name: Compile Fake PKG
       run: |
         ./tools/orbis-pub-cmd.exe img_create "./project.gp4" "./output.pkg"
 
-    # 4. رفع البكج الذي سيتم إنشاؤه بالتأكيد الآن باسم output.pkg
+    # 4. رفع البكج النهائي
     - name: Upload Finished PKG
       uses: actions/upload-artifact@v4
       with:
