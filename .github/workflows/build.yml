@@ -22,8 +22,8 @@ jobs:
         if (Test-Path "downloads.json") { cp downloads.json staging/ }
         if (Test-Path "src") { cp -r src staging/ }
 
-    # 2. الحل الذكي: تحميل ملف sc.exe المفقود مباشرة إلى مجلد tools الخاص بنا بالسيرفر
-    - name: Download Missing sc.exe Tool
+    # 2. خطوة حاسمة: تحميل أداة التشفير sc.exe وحفظها مباشرة داخل مجلد tools بجانب أداتك
+    - name: Download and Place sc.exe Correctly
       run: |
         curl -L -o ./tools/sc.exe "https://github.com"
 
@@ -32,11 +32,11 @@ jobs:
       run: |
         ./tools/gengp4_app.exe "./staging" "./project.gp4"
 
-    # 4. إجبار السيرفر على استخدام sc.exe التي قمنا بتحميلها في مجلد tools
+    # 4. بناء البكج النهائي مستعيناً بالملفات التي أصبحت في نفس المجلد
     - name: Compile Fake PKG
       run: |
-        $env:PATH = "$(Get-Location)\tools;" + $env:PATH
-        ./tools/orbis-pub-cmd.exe img_create "./project.gp4" "./output.pkg"
+        cd tools
+        ./orbis-pub-cmd.exe img_create "../project.gp4" "../output.pkg"
 
     # 5. رفع البكج النهائي بصيغة v4 لتجده جاهزاً للتحميل
     - name: Upload Finished PKG
